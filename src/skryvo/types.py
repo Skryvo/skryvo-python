@@ -112,6 +112,7 @@ PictureRequest = TypedDict(
         'direction': NotRequired[Optional[str]],
         'headline': NotRequired[Optional[str]],
         'photo_id': NotRequired[Optional[str]],
+        'callback_url': NotRequired[Optional[str]],
     },
 )
 
@@ -131,6 +132,7 @@ PlanArticleRequest = TypedDict(
         'only_you': NotRequired[Optional[str]],
         'notes': NotRequired[Optional[str]],
         'sources': NotRequired[Optional[List[str]]],
+        'callback_url': NotRequired[Optional[str]],
     },
 )
 
@@ -288,6 +290,7 @@ WritePostRequest = TypedDict(
         'link': NotRequired[Optional[str]],
         'pictures': NotRequired[Optional[bool]],
         'confirmed': NotRequired[bool],
+        'callback_url': NotRequired[Optional[str]],
     },
 )
 
@@ -596,6 +599,16 @@ Setting = TypedDict(
         'field': Required[str],
         'value': Required[Any],
         'from': Required[str],
+    },
+)
+
+JobAccepted = TypedDict(
+    "JobAccepted",
+    {
+        'job_id': Required[str],
+        'status': Required[Literal['running']],
+        'secret': Required[str],
+        'poll_url': Required[str],
     },
 )
 
@@ -1052,6 +1065,27 @@ ArticlePlan = TypedDict(
     },
 )
 
+JobError = TypedDict(
+    "JobError",
+    {
+        'status': Required[int],
+        'detail': Required[str],
+    },
+)
+
+Job = TypedDict(
+    "Job",
+    {
+        'job_id': Required[str],
+        'kind': Required[Literal['drafts', 'pictures', 'article_plan']],
+        'status': Required[Literal['running', 'done', 'failed']],
+        'answer': NotRequired[Optional[Union["PostsToConfirm", "PostsWritten", "Pictures", "ArticlePlan"]]],
+        'error': NotRequired[Optional["JobError"]],
+        'started_at': NotRequired[Optional[str]],
+        'finished_at': NotRequired[Optional[str]],
+    },
+)
+
 ArticleDone = TypedDict(
     "ArticleDone",
     {
@@ -1489,5 +1523,27 @@ ResultsReadyEvent = TypedDict(
     },
 )
 
-WebhookEvent = Union[PostPublishedEvent, PostFailedEvent, ArticleReadyEvent, ArticleFailedEvent, ResultsReadyEvent]
+JobDoneEvent = TypedDict(
+    "JobDoneEvent",
+    {
+        'id': Required[str],
+        'created': Required[str],
+        'test': Required[bool],
+        'type': Required[Literal['job.done']],
+        'data': Required["Job"],
+    },
+)
+
+JobFailedEvent = TypedDict(
+    "JobFailedEvent",
+    {
+        'id': Required[str],
+        'created': Required[str],
+        'test': Required[bool],
+        'type': Required[Literal['job.failed']],
+        'data': Required["Job"],
+    },
+)
+
+WebhookEvent = Union[PostPublishedEvent, PostFailedEvent, ArticleReadyEvent, ArticleFailedEvent, ResultsReadyEvent, JobDoneEvent, JobFailedEvent]
 WEBHOOK_EVENTS = ('post.published', 'post.failed', 'article.ready', 'article.failed', 'results.ready')

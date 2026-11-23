@@ -8,7 +8,7 @@ import httpx
 import pytest
 
 import skryvo
-from skryvo import AsyncSkryvo, Skryvo, sign, verify_webhook
+from skryvo import AsyncSkryvo, Skryvo, sign, verify_job_callback, verify_webhook
 
 SPEC = json.loads((Path(__file__).parent.parent / "spec" / "openapi.json").read_text())
 PREFIX = "/api/v1/agent"
@@ -85,6 +85,7 @@ def calls(client):
     client.webhooks.delete(i)
     client.webhooks.test(i)
     client.webhooks.deliveries(i)
+    client.jobs.get(i)
 
 
 def test_every_operation_in_the_spec_has_a_method():
@@ -276,3 +277,61 @@ def test_generated_code_matches_the_spec():
     before = {p: p.read_text() for p in [root / "src/skryvo/types.py", root / "src/skryvo/_resources.py"]}
     subprocess.run([sys.executable, str(root / "scripts/generate.py")], check=True, capture_output=True)
     assert {p: p.read_text() for p in before} == before
+
+
+def test_a_long_call_with_callback_url_answers_with_a_job_and_wait_backs_off(monkeypatch):
+    accepted = {
+        "job_id": "job_1",
+        "status": "running",
+        "secret": "whsec_job",
+        "poll_url": "https://api.skryvo.ai/api/v1/agent/jobs/job_1",
+    }
+    pictures = example("POST", f"{PREFIX}/pictures")[1]
+    polls = iter(["running", "running", "done"])
+
+    def handler(request):
+        if request.method == "POST":
+            return httpx.Response(202, json=accepted)
+        status = next(polls)
+        return httpx.Response(
+            200,
+            json={
+                "job_id": "job_1",
+                "kind": "pictures",
+                "status": status,
+                "answer": pictures if status == "done" else None,
+            },
+        )
+
+    client, seen = make(handler)
+    started = client.pictures.design(text="Hello", platforms=["linkedin"], callback_url="https://example.com/done")
+    assert started["status"] == "running" and "job_id" in started
+    assert json.loads(seen[0].content)["callback_url"] == "https://example.com/done"
+    waits = []
+    monkeypatch.setattr(time, "sleep", waits.append)
+    job = client.jobs.wait("job_1", interval=1, max_interval=1.5)
+    assert job["status"] == "done"
+    assert waits == [1, 1.5]
+
+
+def test_verify_job_callback_accepts_a_signed_job_event_and_refuses_others():
+    t = 1_800_000_000
+    failed = json.dumps(
+        {
+            "id": "evt_2",
+            "type": "job.failed",
+            "created": "2026-11-24T09:01:00Z",
+            "test": False,
+            "data": {
+                "job_id": "job_1",
+                "kind": "drafts",
+                "status": "failed",
+                "answer": None,
+                "error": {"status": 500, "detail": "The work stopped before it finished, and nothing was charged."},
+            },
+        }
+    )
+    event = verify_job_callback(failed, f"t={t},v1={sign(failed, 'whsec_job', t)}", "whsec_job", now=t)
+    assert event["data"]["error"]["detail"].endswith("nothing was charged.")
+    with pytest.raises(skryvo.WebhookVerificationError, match="Expected a job callback, got post.published"):
+        verify_job_callback(BODY, f"t={t},v1={sign(BODY, SECRET, t)}", SECRET, now=t)

@@ -108,6 +108,54 @@ class AsyncVideos(r.AsyncVideos):
         return await self.finish(opened["id"])
 
 
+class Jobs(r.Jobs):
+    def wait(
+        self,
+        job_id: str,
+        *,
+        interval: float = 2.0,
+        max_interval: float = 30.0,
+        timeout: float = 15 * 60.0,
+        on_progress: Callable[[t.Job], None] | None = None,
+    ) -> t.Job:
+        """Checks the job, ``interval`` seconds apart and doubling to ``max_interval``, until it is done or failed."""
+        deadline = time.monotonic() + timeout
+        while True:
+            job = self.get(job_id)
+            if on_progress:
+                on_progress(job)
+            if job["status"] != "running":
+                return job
+            if time.monotonic() + interval > deadline:
+                raise SkryvoError(f"The job {job_id} is still running. Check it later with jobs.get.")
+            time.sleep(interval)
+            interval = min(interval * 2, max_interval)
+
+
+class AsyncJobs(r.AsyncJobs):
+    async def wait(
+        self,
+        job_id: str,
+        *,
+        interval: float = 2.0,
+        max_interval: float = 30.0,
+        timeout: float = 15 * 60.0,
+        on_progress: Callable[[t.Job], None] | None = None,
+    ) -> t.Job:
+        """Checks the job, ``interval`` seconds apart and doubling to ``max_interval``, until it is done or failed."""
+        deadline = time.monotonic() + timeout
+        while True:
+            job = await self.get(job_id)
+            if on_progress:
+                on_progress(job)
+            if job["status"] != "running":
+                return job
+            if time.monotonic() + interval > deadline:
+                raise SkryvoError(f"The job {job_id} is still running. Check it later with jobs.get.")
+            await asyncio.sleep(interval)
+            interval = min(interval * 2, max_interval)
+
+
 class Skryvo:
     """The Skryvo agent API. Drafting schedules nothing; ``posts.schedule`` publishes the words it is given."""
 
@@ -136,6 +184,7 @@ class Skryvo:
         self.videos = Videos(self._transport)
         self.results = r.Results(self._transport)
         self.webhooks = r.Webhooks(self._transport)
+        self.jobs = Jobs(self._transport)
 
     def request(self, method: str, path: str, *, query: dict[str, Any] | None = None, body: Any = None) -> Any:
         """Any agent route, for one this version doesn't name yet: ``request("GET", "/me")``."""
@@ -179,6 +228,7 @@ class AsyncSkryvo:
         self.videos = AsyncVideos(self._transport)
         self.results = r.AsyncResults(self._transport)
         self.webhooks = r.AsyncWebhooks(self._transport)
+        self.jobs = AsyncJobs(self._transport)
 
     async def request(self, method: str, path: str, *, query: dict[str, Any] | None = None, body: Any = None) -> Any:
         """Any agent route, for one this version doesn't name yet."""

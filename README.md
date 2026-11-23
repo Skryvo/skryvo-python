@@ -85,7 +85,32 @@ Request fields are keyword arguments named as in the API; answers are typed dict
 | `videos.list()`, `videos.add(**)`, `videos.finish(id)`, `videos.upload(data, name=)` | `/videos`, the upload, `/videos/{id}/finish` |
 | `results.get(days=, brand_id=)` | `GET /results` |
 | `webhooks.list()`, `webhooks.create(**)`, `webhooks.delete(id)`, `webhooks.test(id)`, `webhooks.deliveries(id)` | `/webhooks…` |
+| `jobs.get(id)`, `jobs.wait(id)` | `GET /jobs/{id}` |
 | `request(method, path, query=, body=)` | any agent route |
+
+## Long calls
+
+Writing posts with pictures, designing a picture and planning an article take about a minute. By default the call
+waits for the answer (the client allows 180 seconds). To answer at once instead, pass `callback_url`, an https
+address on the public internet: Skryvo answers 202 with a job and posts the call's own answer there, signed, when
+it is ready.
+
+```python
+job = skryvo.pictures.design(text=text, platforms=["linkedin"], callback_url="https://example.com/skryvo/done")
+# {'job_id': 'job_5e4d3c2b1a09f8e7d6c5b4a3', 'status': 'running', 'secret': 'whsec_…', 'poll_url': '…/jobs/job_…'}
+
+# At https://example.com/skryvo/done, with the raw body:
+event = verify_job_callback(raw_body, headers["skryvo-signature"], job["secret"])
+# event["type"] is "job.done" (event["data"]["answer"] is the call's normal answer)
+# or "job.failed" (event["data"]["error"]["detail"] says why)
+
+# Or check on it: every 2 seconds, doubling to 30, until it ends.
+ended = skryvo.jobs.wait(job["job_id"])
+```
+
+The job's `secret` is shown only in the 202 answer. A failed job spends nothing, and a `confirm` summary is a `done`
+job whose answer asks for `confirmed=True`. These three methods are typed to return either answer; check
+`"job_id" in answer` (or `status`) to tell them apart.
 
 ## Webhooks
 

@@ -14,7 +14,7 @@ from ._errors import (
 )
 from ._version import VERSION
 from .types import WEBHOOK_EVENTS
-from .webhooks import sign, verify_webhook
+from .webhooks import sign, verify_job_callback, verify_webhook
 
 __version__ = VERSION
 __all__ = [
@@ -33,5 +33,6 @@ __all__ = [
     "SkryvoError",
     "WebhookVerificationError",
     "sign",
+    "verify_job_callback",
     "verify_webhook",
 ]

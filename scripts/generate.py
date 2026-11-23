@@ -53,6 +53,7 @@ METHODS = [
     ("Webhooks", "delete", "delete_webhook", None),
     ("Webhooks", "test", "test_webhook", "deliveries"),
     ("Webhooks", "deliveries", "webhook_deliveries", "deliveries"),
+    ("Jobs", "get", "job_status", None),
 ]
 
 
@@ -133,11 +134,18 @@ def qualified(expr: str) -> str:
 
 def answer_type(op: dict) -> tuple[str | None, str | None]:
     """The answer's type expression, and its schema name when it is one schema."""
-    code = next((c for c in op["responses"] if c.startswith("2")), None)
-    schema = op["responses"][code].get("content", {}).get("application/json", {}).get("schema")
-    if not schema:
+    schemas = [
+        r.get("content", {}).get("application/json", {}).get("schema")
+        for code, r in op["responses"].items()
+        if code.startswith("2")
+    ]
+    schemas = [x for x in schemas if x]
+    if not schemas:
         return None, None
-    return qualified(py(schema)), ref(schema) if "$ref" in schema else None
+    if len(schemas) == 1:
+        return qualified(py(schemas[0])), ref(schemas[0]) if "$ref" in schemas[0] else None
+    options = [o for x in schemas for o in (x.get("oneOf") or x.get("anyOf") or [x])]
+    return qualified(join([py(o) for o in options])), None
 
 
 def write_types() -> None:
@@ -153,7 +161,8 @@ def write_types() -> None:
         for item in SPEC.get("webhooks", {}).values()
     ]
     out.append(f"WebhookEvent = Union[{', '.join(events)}]\n")
-    out.append(f"WEBHOOK_EVENTS = {tuple(SPEC.get('webhooks', {}))!r}\n")
+    subscribable = SPEC["components"]["schemas"]["NewWebhookRequest"]["properties"]["events"]["items"]["enum"]
+    out.append(f"WEBHOOK_EVENTS = {tuple(subscribable)!r}\n")
     (ROOT / "src" / "skryvo" / "types.py").write_text("".join(out))
 
 

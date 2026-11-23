@@ -9,7 +9,7 @@ import time
 from typing import cast
 
 from ._errors import WebhookVerificationError
-from .types import WebhookEvent
+from .types import JobDoneEvent, JobFailedEvent, WebhookEvent
 
 Payload = str | bytes
 
@@ -55,3 +55,18 @@ def verify_webhook(
         return cast(WebhookEvent, json.loads(_bytes(payload)))
     except ValueError as cause:
         raise WebhookVerificationError("The delivery's body is not JSON.") from cause
+
+
+def verify_job_callback(
+    payload: Payload,
+    signature_header: str | None,
+    secret: str,
+    *,
+    tolerance_seconds: int = 300,
+    now: int | None = None,
+) -> JobDoneEvent | JobFailedEvent:
+    """Checks a long call's callback with the job's secret (from its 202 answer); returns job.done or job.failed."""
+    event = verify_webhook(payload, signature_header, secret, tolerance_seconds=tolerance_seconds, now=now)
+    if event["type"] not in ("job.done", "job.failed"):
+        raise WebhookVerificationError(f"Expected a job callback, got {event['type']}.")
+    return event

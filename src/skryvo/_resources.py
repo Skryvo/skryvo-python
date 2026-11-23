@@ -67,9 +67,9 @@ class Posts:
     def __init__(self, transport: SyncTransport) -> None:
         self._t = transport
 
-    def write(self, **body: Unpack[t.WritePostRequest]) -> Union[t.PostsToConfirm, t.PostsWritten]:
+    def write(self, **body: Unpack[t.WritePostRequest]) -> Union[t.PostsToConfirm, t.PostsWritten, t.JobAccepted]:
         """Write posts."""
-        return cast(Union[t.PostsToConfirm, t.PostsWritten], self._t.request("POST", '/drafts', query=None, body=dict(body)))
+        return cast(Union[t.PostsToConfirm, t.PostsWritten, t.JobAccepted], self._t.request("POST", '/drafts', query=None, body=dict(body)))
 
     def schedule(self, **body: Unpack[t.SchedulePostRequest]) -> List[t.Post]:
         """Schedule a post."""
@@ -96,18 +96,18 @@ class Pictures:
     def __init__(self, transport: SyncTransport) -> None:
         self._t = transport
 
-    def design(self, **body: Unpack[t.PictureRequest]) -> t.Pictures:
+    def design(self, **body: Unpack[t.PictureRequest]) -> Union[t.Pictures, t.JobAccepted]:
         """Design a picture for a post."""
-        return cast(t.Pictures, self._t.request("POST", '/pictures', query=None, body=dict(body)))
+        return cast(Union[t.Pictures, t.JobAccepted], self._t.request("POST", '/pictures', query=None, body=dict(body)))
 
 
 class Articles:
     def __init__(self, transport: SyncTransport) -> None:
         self._t = transport
 
-    def plan(self, **body: Unpack[t.PlanArticleRequest]) -> t.ArticlePlan:
+    def plan(self, **body: Unpack[t.PlanArticleRequest]) -> Union[t.ArticlePlan, t.JobAccepted]:
         """Plan an article."""
-        return cast(t.ArticlePlan, self._t.request("POST", '/articles/plan', query=None, body=dict(body)))
+        return cast(Union[t.ArticlePlan, t.JobAccepted], self._t.request("POST", '/articles/plan', query=None, body=dict(body)))
 
     def write(self, **body: Unpack[t.WriteArticleRequest]) -> Union[t.ArticleStarted, t.ArticleWriting, t.ArticleFailed, t.ArticleDone]:
         """Write a planned article."""
@@ -242,6 +242,15 @@ class Webhooks:
         return cast(List[t.Delivery], (self._t.request("GET", f"/webhooks/{_seg(webhook_id)}/deliveries", query=None, body=None))['deliveries'])
 
 
+class Jobs:
+    def __init__(self, transport: SyncTransport) -> None:
+        self._t = transport
+
+    def get(self, job_id: str) -> t.Job:
+        """Read a job."""
+        return cast(t.Job, self._t.request("GET", f"/jobs/{_seg(job_id)}", query=None, body=None))
+
+
 class AsyncAccount:
     def __init__(self, transport: AsyncTransport) -> None:
         self._t = transport
@@ -297,9 +306,9 @@ class AsyncPosts:
     def __init__(self, transport: AsyncTransport) -> None:
         self._t = transport
 
-    async def write(self, **body: Unpack[t.WritePostRequest]) -> Union[t.PostsToConfirm, t.PostsWritten]:
+    async def write(self, **body: Unpack[t.WritePostRequest]) -> Union[t.PostsToConfirm, t.PostsWritten, t.JobAccepted]:
         """Write posts."""
-        return cast(Union[t.PostsToConfirm, t.PostsWritten], await self._t.request("POST", '/drafts', query=None, body=dict(body)))
+        return cast(Union[t.PostsToConfirm, t.PostsWritten, t.JobAccepted], await self._t.request("POST", '/drafts', query=None, body=dict(body)))
 
     async def schedule(self, **body: Unpack[t.SchedulePostRequest]) -> List[t.Post]:
         """Schedule a post."""
@@ -326,18 +335,18 @@ class AsyncPictures:
     def __init__(self, transport: AsyncTransport) -> None:
         self._t = transport
 
-    async def design(self, **body: Unpack[t.PictureRequest]) -> t.Pictures:
+    async def design(self, **body: Unpack[t.PictureRequest]) -> Union[t.Pictures, t.JobAccepted]:
         """Design a picture for a post."""
-        return cast(t.Pictures, await self._t.request("POST", '/pictures', query=None, body=dict(body)))
+        return cast(Union[t.Pictures, t.JobAccepted], await self._t.request("POST", '/pictures', query=None, body=dict(body)))
 
 
 class AsyncArticles:
     def __init__(self, transport: AsyncTransport) -> None:
         self._t = transport
 
-    async def plan(self, **body: Unpack[t.PlanArticleRequest]) -> t.ArticlePlan:
+    async def plan(self, **body: Unpack[t.PlanArticleRequest]) -> Union[t.ArticlePlan, t.JobAccepted]:
         """Plan an article."""
-        return cast(t.ArticlePlan, await self._t.request("POST", '/articles/plan', query=None, body=dict(body)))
+        return cast(Union[t.ArticlePlan, t.JobAccepted], await self._t.request("POST", '/articles/plan', query=None, body=dict(body)))
 
     async def write(self, **body: Unpack[t.WriteArticleRequest]) -> Union[t.ArticleStarted, t.ArticleWriting, t.ArticleFailed, t.ArticleDone]:
         """Write a planned article."""
@@ -470,3 +479,12 @@ class AsyncWebhooks:
     async def deliveries(self, webhook_id: str) -> List[t.Delivery]:
         """List recent deliveries."""
         return cast(List[t.Delivery], (await self._t.request("GET", f"/webhooks/{_seg(webhook_id)}/deliveries", query=None, body=None))['deliveries'])
+
+
+class AsyncJobs:
+    def __init__(self, transport: AsyncTransport) -> None:
+        self._t = transport
+
+    async def get(self, job_id: str) -> t.Job:
+        """Read a job."""
+        return cast(t.Job, await self._t.request("GET", f"/jobs/{_seg(job_id)}", query=None, body=None))
