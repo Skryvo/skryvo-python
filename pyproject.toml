@@ -1,0 +1,47 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "skryvo"
+version = "0.1.0"
+description = "Skryvo for Python: write, design and schedule posts and articles in a brand's voice."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Flutter Studio LLC", email = "support@skryvo.ai" }]
+requires-python = ">=3.10"
+dependencies = ["httpx>=0.27,<1", "typing_extensions>=4.7"]
+keywords = ["skryvo", "social media", "scheduling", "content", "ai writing", "sdk"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Typing :: Typed",
+  "Topic :: Internet :: WWW/HTTP",
+]
+
+[project.urls]
+Homepage = "https://skryvo.ai"
+Documentation = "https://skryvo.ai/docs/"
+Source = "https://github.com/Skryvo/skryvo-python"
+Issues = "https://github.com/Skryvo/skryvo-python/issues"
+
+[tool.hatch.build.targets.sdist]
+include = ["src/skryvo", "README.md", "CHANGELOG.md", "LICENSE"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/skryvo"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+extend-exclude = ["src/skryvo/types.py", "src/skryvo/_resources.py"]
+
+[tool.mypy]
+strict = true
+python_version = "3.10"
+files = ["src/skryvo"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
